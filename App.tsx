@@ -1,103 +1,88 @@
-import React, { useState } from "react";
-import { KeyboardAvoidingView, Platform, StyleSheet, Text, TouchableOpacity, View, TextInput, Keyboard, ScrollView } from "react-native";
-import Task from './components/Task'
-export default function Index() {
-  const [task, setTask] = useState('');
-  const [taskItems, setTaskItems] = useState([]);
+import React, { useEffect, useState } from 'react';
+import { View, Text, Button, StyleSheet } from 'react-native';
+import Voice from '@react-native-voice/voice';
 
-  const addTask = () => {
-    Keyboard.dismiss();
-    if (task) {
-      setTaskItems([...taskItems, task]);
-      setTask('');
+const App = () => {
+  const [recognizedText, setRecognizedText] = useState('');
+  const [isListening, setIsListening] = useState(false);
+
+  useEffect(() => {
+    console.log(Voice);
+    if (!Voice) {
+      console.error('Voice module is not available.');
+      return;
     }
-  }
 
-  const completeTask = (index) => {
-    let itemsCopy = [...taskItems];
-    itemsCopy.splice(index,1);
-    setTaskItems(itemsCopy);
-  }
+    Voice.onSpeechResults = onSpeechResultsHandler;
+    Voice.onSpeechStart = onSpeechStartHandler;
+    Voice.onSpeechEnd = onSpeechEndHandler;
+
+    return () => {
+      Voice.destroy().then(Voice.removeAllListeners);
+    };
+  }, []);
+
+  const onSpeechStartHandler = () => {
+    setIsListening(true);
+  };
+
+  const onSpeechEndHandler = () => {
+    setIsListening(false);
+  };
+
+  const onSpeechResultsHandler = (event) => {
+    const { value } = event;
+    if (value && value.length > 0) {
+      setRecognizedText(value[0]);
+    }
+  };
+
+  const startListening = async () => {
+    try {
+      if (Voice) {
+        await Voice.start('en-US');
+      } else {
+        console.error('Voice is not available');
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const stopListening = async () => {
+    try {
+      if (Voice) {
+        await Voice.stop();
+      } else {
+        console.error('Voice is not available');
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
 
   return (
-    <View>
-      <ScrollView contentContainerStyle={styles.scrollView}>
-        {/* Today's task */}
-        <View style={styles.taskWrapper}>
-          <Text style={styles.sectionTitle}>Today's Tasks</Text>
-          <View style={styles.items}>
-            {/* Here, Tasks will go */}
-            {/* <Task text={'Task 1'}/>
-            <Task text={'Task 2'}/> */}
-            {/* Dynamically render tasks */}
-            {taskItems.map((item, index) => (
-              <TouchableOpacity key={index} onPress={() => completeTask(index)}>
-                <Task text={item} />
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
-      </ScrollView>
-      {/* Write a task */}
-      <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={styles.writeTaskWrapper}>
-        <TextInput style={styles.input} placeholder="Write a Task" value={task} onChangeText={text => setTask(text)}/>
-        <TouchableOpacity onPress={() => addTask()}>
-          <View style={styles.addWrapper}>
-            <Text style={styles.addText}>+</Text>
-            </View>
-        </TouchableOpacity>
-      </KeyboardAvoidingView>
-
+    <View style={styles.container}>
+      <Text style={styles.text}>{recognizedText || 'Say something...'}</Text>
+      <Button
+        title={isListening ? 'Stop Listening' : 'Start Listening'}
+        onPress={isListening ? stopListening : startListening}
+      />
     </View>
   );
-}
+};
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#E8EAED',
-    justifyContent: 'space-between',
-  },
-  scrollView: {
-    flexGrow: 1,
-  },
-  taskWrapper : {
-    paddingTop: 80,
-    paddingHorizontal: 20,
-  },
-  sectionTitle : {
-    fontSize: 24,
-    fontWeight: 'bold',
-  },
-  items : {
-    marginTop: 30,
-  },
-  writeTaskWrapper: {
-    paddingHorizontal: 15,
-    position: 'relative',
-    width: '100%',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  input: {
-    paddingVertical: 15,
-    paddingHorizontal: 15,
-    backgroundColor: '#FFF',
-    borderRadius: 60,
-    borderColor: '#C0C0C0',
-    borderWidth: 1,
-    width: 250,
-  },
-  addWrapper: {
-    width: 60,
-    height: 60,
-    backgroundColor: '#FFF',
-    borderRadius: 60,
     justifyContent: 'center',
     alignItems: 'center',
-    borderColor: '#C0C0C0',
-    borderWidth: 1,
+    padding: 20,
   },
-  addText: {},
+  text: {
+    fontSize: 24,
+    marginBottom: 20,
+  },
 });
+
+export default App;
