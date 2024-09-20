@@ -1,73 +1,37 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, Button, StyleSheet } from 'react-native';
-import Voice from '@react-native-voice/voice';
+import React, { useEffect } from 'react';
+import { View, Text, StyleSheet } from 'react-native';
+import Tts from 'react-native-tts';
 
 const App = () => {
-  const [recognizedText, setRecognizedText] = useState('');
-  const [isListening, setIsListening] = useState(false);
-
   useEffect(() => {
-    console.log(Voice);
-    if (!Voice) {
-      console.error('Voice module is not available.');
-      return;
-    }
-
-    Voice.onSpeechResults = onSpeechResultsHandler;
-    Voice.onSpeechStart = onSpeechStartHandler;
-    Voice.onSpeechEnd = onSpeechEndHandler;
-
-    return () => {
-      Voice.destroy().then(Voice.removeAllListeners);
-    };
+    Tts.getInitStatus()
+      .then(() => {
+        console.log('TTS initialized successfully');
+        handleVoice('Welcome to the app. Click on text');
+      })
+      .catch(err => {
+        console.error('TTS Initialization Error:', err);
+        if (err.code === 'no_engine') {
+          Tts.requestInstallEngine();
+        }
+      });
   }, []);
 
-  const onSpeechStartHandler = () => {
-    setIsListening(true);
-  };
-
-  const onSpeechEndHandler = () => {
-    setIsListening(false);
-  };
-
-  const onSpeechResultsHandler = (event) => {
-    const { value } = event;
-    if (value && value.length > 0) {
-      setRecognizedText(value[0]);
-    }
-  };
-
-  const startListening = async () => {
-    try {
-      if (Voice) {
-        await Voice.start('en-US');
-      } else {
-        console.error('Voice is not available');
-      }
-    } catch (e) {
-      console.error(e);
-    }
-  };
-
-  const stopListening = async () => {
-    try {
-      if (Voice) {
-        await Voice.stop();
-      } else {
-        console.error('Voice is not available');
-      }
-    } catch (e) {
-      console.error(e);
-    }
+  const handleVoice = ttsText => {
+    Tts.speak(ttsText, {
+      androidParams: {
+        KEY_PARAM_PAN: -1,
+        KEY_PARAM_VOLUME: 1, 
+        KEY_PARAM_STREAM: 'STREAM_MUSIC',
+      },
+    });
   };
 
   return (
     <View style={styles.container}>
-      <Text style={styles.text}>{recognizedText || 'Say something...'}</Text>
-      <Button
-        title={isListening ? 'Stop Listening' : 'Start Listening'}
-        onPress={isListening ? stopListening : startListening}
-      />
+      <Text style={styles.text} onPress={() => handleVoice('Apple')}>
+        Say Apple
+      </Text>
     </View>
   );
 };
@@ -77,11 +41,10 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 20,
   },
   text: {
-    fontSize: 24,
-    marginBottom: 20,
+    fontSize: 22,
+    color: 'blue',
   },
 });
 
