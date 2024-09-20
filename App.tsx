@@ -1,103 +1,143 @@
-import React, { useState } from "react";
-import { KeyboardAvoidingView, Platform, StyleSheet, Text, TouchableOpacity, View, TextInput, Keyboard, ScrollView } from "react-native";
-import Task from './components/Task'
-export default function Index() {
-  const [task, setTask] = useState('');
-  const [taskItems, setTaskItems] = useState([]);
+import React, { useEffect, useState } from 'react';
+import { View, Text, StyleSheet, Button } from 'react-native';
+import Tts from 'react-native-tts';
+import Voice from '@react-native-voice/voice';
 
-  const addTask = () => {
-    Keyboard.dismiss();
-    if (task) {
-      setTaskItems([...taskItems, task]);
-      setTask('');
+const App = () => {
+  const [recognized, setRecognized] = useState('');
+  const [started, setStarted] = useState('');
+  const [results, setResults] = useState([]);
+  const [isListening, setIsListening] = useState(false);
+
+  useEffect(() => {
+    Tts.getInitStatus()
+      .then(() => {
+        console.log('TTS initialized successfully');
+        handleVoice('Welcome to the app. Click on text to hear or on button to start speaking.');
+      })
+      .catch(err => {
+        console.error('TTS Initialization Error:', err);
+        if (err.code === 'no_engine') {
+          Tts.requestInstallEngine();
+        }
+      });
+
+    Voice.onSpeechStart = onSpeechStart;
+    Voice.onSpeechRecognized = onSpeechRecognized;
+    Voice.onSpeechResults = onSpeechResults;
+
+    return () => {
+      Voice.destroy().then(Voice.removeAllListeners);
+    };
+  }, []);
+
+  const handleVoice = ttsText => {
+    Tts.speak(ttsText, {
+      androidParams: {
+        KEY_PARAM_PAN: -1,
+        KEY_PARAM_VOLUME: 1, 
+        KEY_PARAM_STREAM: 'STREAM_MUSIC',
+      },
+    });
+  };
+
+  const onSpeechStart = e => {
+    setStarted('Listening...');
+    console.log('onSpeechStart:', e);
+  };
+
+  const onSpeechRecognized = e => {
+    setRecognized('Speech recognized');
+    console.log('onSpeechRecognized:', e);
+  };
+
+  const onSpeechResults = e => {
+    setResults(e.value); 
+    console.log('onSpeechResults:', e);
+    stopListening();
+    setStarted('');
+  };
+
+  const startListening = async () => {
+    try {
+      await Voice.start('en-US');
+      setIsListening(true);
+      setStarted('Listening...');
+    } catch (e) {
+      console.error(e);
     }
-  }
+  };
 
-  const completeTask = (index) => {
-    let itemsCopy = [...taskItems];
-    itemsCopy.splice(index,1);
-    setTaskItems(itemsCopy);
-  }
+  const stopListening = async () => {
+    try {
+      await Voice.stop();
+      setIsListening(false);
+    } catch (e) {
+      console.error(e);
+    }
+  };
 
   return (
-    <View>
-      <ScrollView contentContainerStyle={styles.scrollView}>
-        {/* Today's task */}
-        <View style={styles.taskWrapper}>
-          <Text style={styles.sectionTitle}>Today's Tasks</Text>
-          <View style={styles.items}>
-            {/* Here, Tasks will go */}
-            {/* <Task text={'Task 1'}/>
-            <Task text={'Task 2'}/> */}
-            {/* Dynamically render tasks */}
-            {taskItems.map((item, index) => (
-              <TouchableOpacity key={index} onPress={() => completeTask(index)}>
-                <Task text={item} />
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
-      </ScrollView>
-      {/* Write a task */}
-      <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={styles.writeTaskWrapper}>
-        <TextInput style={styles.input} placeholder="Write a Task" value={task} onChangeText={text => setTask(text)}/>
-        <TouchableOpacity onPress={() => addTask()}>
-          <View style={styles.addWrapper}>
-            <Text style={styles.addText}>+</Text>
-            </View>
-        </TouchableOpacity>
-      </KeyboardAvoidingView>
+    <View style={styles.container}>
+      <Text style={styles.text} onPress={() => handleVoice('Apple')}>
+        Say Apple
+      </Text>
 
+      <Button
+        title={isListening ? 'Stop Listening' : 'Start Listening'}
+        onPress={isListening ? stopListening : startListening}
+      />
+
+      <Text style={styles.infoText}>Recognized: {recognized}</Text>
+      <Text style={styles.infoText}>Started: {started}</Text>
+
+      {results.length > 0 && (
+        <View style={styles.resultsContainer}>
+          <Text style={styles.resultsText}>Results:</Text>
+          {results.map((result, index) => (
+            <Text key={index} style={styles.resultText}>
+              {result}
+            </Text>
+          ))}
+        </View>
+      )}
     </View>
   );
-}
+};
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#E8EAED',
-    justifyContent: 'space-between',
-  },
-  scrollView: {
-    flexGrow: 1,
-  },
-  taskWrapper : {
-    paddingTop: 80,
-    paddingHorizontal: 20,
-  },
-  sectionTitle : {
-    fontSize: 24,
-    fontWeight: 'bold',
-  },
-  items : {
-    marginTop: 30,
-  },
-  writeTaskWrapper: {
-    paddingHorizontal: 15,
-    position: 'relative',
-    width: '100%',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  input: {
-    paddingVertical: 15,
-    paddingHorizontal: 15,
-    backgroundColor: '#FFF',
-    borderRadius: 60,
-    borderColor: '#C0C0C0',
-    borderWidth: 1,
-    width: 250,
-  },
-  addWrapper: {
-    width: 60,
-    height: 60,
-    backgroundColor: '#FFF',
-    borderRadius: 60,
     justifyContent: 'center',
     alignItems: 'center',
-    borderColor: '#C0C0C0',
-    borderWidth: 1,
+    paddingHorizontal: 20,
   },
-  addText: {},
+  text: {
+    fontSize: 24,
+    color: 'blue',
+    marginBottom: 20,
+  },
+  buttonContainer: {
+    marginVertical: 20,
+    width: '60%',
+  },
+  infoText: {
+    marginVertical: 10,
+    fontSize: 16,
+  },
+  resultsContainer: {
+    marginTop: 20,
+    paddingHorizontal: 20,
+  },
+  resultsText: {
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  resultText: {
+    fontSize: 16,
+    marginVertical: 5,
+  },
 });
+
+
+export default App;
